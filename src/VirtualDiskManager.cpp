@@ -37,20 +37,35 @@ bool VirtualDiskManager::unloadVirtualDisks()
 {
 }
 
-bool VirtualDiskManager::createDisk(int diskSize, int blockSize, string diskName, char diskChar)
+bool VirtualDiskManager::createDisk(int diskSize, int blockSize, int inodeAmount, string diskName, char diskChar)
 {
-    ofstream newDisk(diskName);
+    if(createSuperblock(diskSize, blockSize, inodeAmount))
+    {
+       int blockCount = diskSize / blockSize;
 
-    newDisk.close();
+       if(createBitmap(blockCount))
+       {
 
-    return true;
+          if(createInodeTable())
+          {
+              for(int i = 0; i < inodeAmount; i++)
+                 createInode();
+
+              return true;
+          }
+
+       }
+
+    }
+
+    return false;
 }
 
-bool VirtualDiskManager::createSuperblock()
+bool VirtualDiskManager::createSuperblock(int diskSize, int blockSize, int inodeAmount)
 {
 }
 
-bool VirtualDiskManager::createBitmap()
+bool VirtualDiskManager::createBitmap(int blockCount)
 {
 }
 

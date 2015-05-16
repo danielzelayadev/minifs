@@ -16,7 +16,7 @@ class VirtualDiskManager
         bool openVDiskManager();
         bool closeVDiskManager();
         bool isOpen();
-        bool createDisk(int diskSize, int blockSize, string diskName, char diskChar);
+        bool createDisk(int diskSize, int blockSize, int inodeAmount, string diskName, char diskChar);
 
 
     private:
@@ -24,8 +24,8 @@ class VirtualDiskManager
         vector<VirtualDisk*>* vdisks;
         bool open;
 
-        bool createSuperblock();
-        bool createBitmap();
+        bool createSuperblock(int diskSize, int blockSize, int inodeAmount);
+        bool createBitmap(int blockCount);
         bool createInodeTable();
         bool createInode();
 
