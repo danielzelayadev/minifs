@@ -39,40 +39,41 @@ bool VirtualDiskManager::unloadVirtualDisks()
 
 bool VirtualDiskManager::createDisk(int diskSize, int blockSize, int inodeAmount, string diskName, char diskChar)
 {
-    if(createSuperblock(diskSize, blockSize, inodeAmount))
+    ofstream* newDisk = new ofstream(diskName, ios::binary);
+
+    char buffer[diskSize];
+
+    if(newDisk->is_open())
     {
+       newDisk->write(buffer, diskSize);
+
        int blockCount = diskSize / blockSize;
 
-       if(createBitmap(blockCount))
+       if(createSuperblock(newDisk, diskSize, blockSize, blockCount))
        {
+           newDisk->close();
+       delete newDisk;
 
-          if(createInodeTable())
-          {
-              for(int i = 0; i < inodeAmount; i++)
-                 createInode();
-
-              return true;
-          }
+       return true;
 
        }
-
     }
 
     return false;
 }
 
-bool VirtualDiskManager::createSuperblock(int diskSize, int blockSize, int inodeAmount)
+bool VirtualDiskManager::createSuperblock(ofstream* newDisk, int diskSize, int blockSize, int blockCount)
 {
 }
 
-bool VirtualDiskManager::createBitmap(int blockCount)
+bool VirtualDiskManager::createBitmap(ofstream* newDisk, int blockCount)
 {
 }
 
-bool VirtualDiskManager::createInodeTable()
+bool VirtualDiskManager::createInodeTable(ofstream* newDisk)
 {
 }
 
-bool VirtualDiskManager::createInode()
+bool VirtualDiskManager::createInode(ofstream* newDisk)
 {
 }
