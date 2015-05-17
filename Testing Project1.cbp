@@ -13,6 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="include" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -22,6 +23,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-O2" />
+					<Add directory="include" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -32,7 +34,15 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="include/Block.h" />
+		<Unit filename="include/Inode.h" />
+		<Unit filename="include/VirtualDisk.h" />
+		<Unit filename="include/VirtualDiskManager.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="src/Block.cpp" />
+		<Unit filename="src/Inode.cpp" />
+		<Unit filename="src/VirtualDisk.cpp" />
+		<Unit filename="src/VirtualDiskManager.cpp" />
 		<Extensions>
 			<code_completion />
 			<debugger />
