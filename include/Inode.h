@@ -7,7 +7,9 @@ class Inode
     public:
         Inode();
         virtual ~Inode();
-    protected:
+
+
+
     private:
 };
 

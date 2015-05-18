@@ -24,13 +24,17 @@ class VirtualDiskManager
         vector<VirtualDisk*>* vdisks;
         bool open;
 
-        bool createSuperblock(ofstream* newDisk, int diskSize, int blockSize, int blockCount);
-        bool createBitmap(ofstream* newDisk, int blockCount);
-        bool createInodeTable(ofstream* newDisk);
+        bool createSuperblock(ofstream* newDisk, string diskName, int diskSize, int blockSize,
+                              int blockCount, int inodeBlockCount);
+        bool createDataBitmap(ofstream* newDisk, int blockCount);
+        bool createInodeBitmap(ofstream* newDisk, int inodeBlockCount);
+        bool createInodeTable(ofstream* newDisk, int inodeBlockCount);
         bool createInode(ofstream* newDisk);
 
         bool loadVirtualDisks();
         bool unloadVirtualDisks();
+
+        void goToBlock(ofstream* disk, int blockPos, int blockSize);
 
 };
 
