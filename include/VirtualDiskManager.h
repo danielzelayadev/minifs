@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 #include "VirtualDisk.h"
+#include "Inode.h"
+
+#define INODE_SIZE 106
 
 using namespace std;
 
@@ -16,7 +19,7 @@ class VirtualDiskManager
         bool openVDiskManager();
         bool closeVDiskManager();
         bool isOpen();
-        bool createDisk(int diskSize, int blockSize, int blockCount, string diskName, char diskChar);
+        bool createDisk(int diskSize, int blockSize, int blockCount, string diskName, char partitionChar);
 
 
     private:
@@ -27,8 +30,7 @@ class VirtualDiskManager
         bool createSuperblock(ofstream* newDisk, string diskName, int diskSize, int blockSize,
                               int blockCount, int inodeBlockCount);
         bool createDataBitmap(ofstream* newDisk, int blockCount);
-        bool createInodeBitmap(ofstream* newDisk, int inodeBlockCount);
-        bool createInodeTable(ofstream* newDisk, int inodeBlockCount);
+        bool createInodeTable(ofstream* newDisk, int inodeCount);
         bool createInode(ofstream* newDisk);
 
         bool loadVirtualDisks();

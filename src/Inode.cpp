@@ -2,10 +2,9 @@
 
 Inode::Inode()
 {
-    //ctor
 }
 
 Inode::~Inode()
 {
-    //dtor
+    delete duration;
 }

@@ -38,7 +38,7 @@ bool VirtualDiskManager::unloadVirtualDisks()
 {
 }
 
-bool VirtualDiskManager::createDisk(int diskSize, int blockSize, int inodeAmount, string diskName, char diskChar)
+bool VirtualDiskManager::createDisk(int diskSize, int blockSize, int blockCount, string diskName, char partitionChar)
 {
     ofstream* newDisk = new ofstream(diskName, ios::binary);
 
@@ -48,29 +48,26 @@ bool VirtualDiskManager::createDisk(int diskSize, int blockSize, int inodeAmount
     {
        newDisk->write(buffer, diskSize);
 
-       int blockCount = diskSize / blockSize;
        int inodeBlockCount = blockCount * 0.2;
 
        if(createSuperblock(newDisk, diskName, diskSize, blockSize, blockCount, inodeBlockCount))
        {
             goToBlock(newDisk, 1, blockSize);
 
-          if(createDataBitmap(newDisk, blockCount))
-          {
-              goToBlock(newDisk, 2, blockSize);
-
-              if(createInodeBitmap(newDisk, inodeBlockCount))
+              if(createDataBitmap(newDisk, blockCount))
               {
-                 goToBlock(newDisk, 3, blockSize);
+                 goToBlock(newDisk, 2, blockSize);
 
-                 if(createInodeTable(newDisk, inodeBlockCount))
+                 int inodeCount = (blockSize*inodeBlockCount) / INODE_SIZE;
+
+                 if(createInodeTable(newDisk, inodeCount))
                  {
                     newDisk->close();
                     delete newDisk;
                     return true;
                  }
               }
-          }
+
        }
     }
 
@@ -83,7 +80,7 @@ bool VirtualDiskManager::createSuperblock(ofstream* newDisk, string diskName, in
 
       newDisk->seekp(0);
 
-      newDisk->write( "D", diskName.length());
+      newDisk->write( diskName.c_str(), diskName.length());
       newDisk->write( (char*)&diskSize, sizeof(int));
       newDisk->write( (char*)&blockSize, sizeof(int));
       newDisk->write( (char*)&blockCount, sizeof(int));
@@ -108,13 +105,9 @@ bool VirtualDiskManager::createDataBitmap(ofstream* newDisk, int blockCount)
      return true;
 }
 
-bool VirtualDiskManager::createInodeBitmap(ofstream* newDisk, int inodeBlockCount)
+bool VirtualDiskManager::createInodeTable(ofstream* newDisk, int inodeCount)
 {
-   createDataBitmap(newDisk, inodeBlockCount);
-}
 
-bool VirtualDiskManager::createInodeTable(ofstream* newDisk, int inodeBlockCount)
-{
   return true;
 }
 
