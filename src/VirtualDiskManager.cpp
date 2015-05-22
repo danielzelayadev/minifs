@@ -1,6 +1,7 @@
 #include "VirtualDiskManager.h"
 #include <fstream>
 #include <iostream>
+#include <string.h>
 #include <ctime>
 
 #define INODE_BLOCK_PERCENTAGE 0.07
@@ -41,7 +42,7 @@ bool VirtualDiskManager::unloadVirtualDisks()
 {
 }
 
-bool VirtualDiskManager::createDisk(string diskName, int blockCount, int blockSize, int diskSize, char partitionChar)
+bool VirtualDiskManager::createDisk(char diskName[30], int blockCount, int blockSize, int diskSize, char partitionChar)
 {
     ofstream* newDisk = new ofstream(diskName, ios::binary);
 
@@ -85,22 +86,33 @@ bool VirtualDiskManager::createDisk(string diskName, int blockCount, int blockSi
     return false;
 }
 
-bool VirtualDiskManager::createSuperblock(ofstream* newDisk, string diskName, char partitionChar, int diskSize, int blockSize,
+bool VirtualDiskManager::createSuperblock(ofstream* newDisk, char diskName[30], char partitionChar, int diskSize, int blockSize,
                                         int blockCount, int dataBlockCount, int inodeSize, int inodeCount, int inodeBlockCount)
 {
 
       newDisk->seekp(0);
 //      int freeSpace, usedSpace;
 
-      newDisk->write( diskName.c_str(), diskName.length()); //Poner un limite
-      newDisk->write( &partitionChar, sizeof(char));
-      newDisk->write( (char*)&diskSize, sizeof(int));
-      newDisk->write( (char*)&blockSize, sizeof(int));
-      newDisk->write( (char*)&blockCount, sizeof(int));
-      newDisk->write( (char*)&dataBlockCount, sizeof(int));
-      newDisk->write( (char*)&inodeSize, sizeof(int));
-      newDisk->write( (char*)&inodeCount, sizeof(int));
-      newDisk->write( (char*)&inodeBlockCount, sizeof(int));
+      SuperBlock sp;
+      strcpy(sp.diskName, diskName);
+      sp.blockCount = blockCount;
+      sp.blockSize = blockSize;
+      sp.dataBlockCount = dataBlockCount;
+      sp.diskSize = diskSize;
+      sp.inodeBlockCount = inodeBlockCount;
+      sp.inodeCount = inodeCount;
+      sp.inodeSize = inodeSize;
+      sp.partitionChar = partitionChar;
+
+      cout << sp.diskSize << endl;
+      cout << sp.blockCount << endl;
+      cout << sp.blockSize << endl;
+      cout << sp.inodeCount << endl;
+      cout << sp.dataBlockCount << endl;
+      cout << sp.inodeSize << endl;
+      cout << sp.inodeCount << endl;
+
+      newDisk->write((char*)&sp, sizeof(SuperBlock));
 
       return true;
 
