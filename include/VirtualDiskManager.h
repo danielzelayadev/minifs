@@ -7,6 +7,26 @@
 
 using namespace std;
 
+struct SuperBlock
+{
+  char diskName[30];
+  char partitionChar;
+  int diskSize;
+  int blockSize;
+  int blockCount;
+  int dataBlockCount;
+  int inodeSize;
+  int inodeCount;
+  int inodeBlockCount;
+};
+
+struct InodeInfo
+{
+   int iNumber;
+   char songName[30];
+   bool free;
+};
+
 struct Inode
 {
   //Song Meta
@@ -15,6 +35,7 @@ struct Inode
         int songTime;
 
         //File Meta
+        int iNumber;
         int fileSize;
 
         char ownerId[2];

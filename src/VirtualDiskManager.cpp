@@ -146,6 +146,7 @@ bool VirtualDiskManager::createInodes(ofstream* newDisk, int inodeCount)
   for(int i = 0; i < inodeCount; i++)
   {
     Inode inode;
+    inode.iNumber = i;
     inode.openMode[0] = 'r';
     newDisk->write((char*)&inode, sizeof(Inode));
   }
