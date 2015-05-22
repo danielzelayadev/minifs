@@ -4,11 +4,35 @@
 #include <vector>
 #include <string>
 #include "VirtualDisk.h"
-#include "Inode.h"
-
-#define INODE_SIZE 106
 
 using namespace std;
+
+struct Inode
+{
+  //Song Meta
+        char artist[30];
+        char album[30];
+        int songTime;
+
+        //File Meta
+        int fileSize;
+
+        char ownerId[2];
+        char openMode[2];
+
+        int creationTime;
+        int modTime;
+        int deleteTime;
+        int lastAccessTime;
+
+        int blocksInUse;
+        int flags;
+
+        int blocks[10];
+
+        int singleIndirectBlock;
+        int doubleIndirectBlock;
+};
 
 class VirtualDiskManager
 {
@@ -19,7 +43,7 @@ class VirtualDiskManager
         bool openVDiskManager();
         bool closeVDiskManager();
         bool isOpen();
-        bool createDisk(int diskSize, int blockSize, int blockCount, string diskName, char partitionChar);
+        bool createDisk(string diskName, int blockCount, int blockSize, int diskSize, char partitionChar);
 
 
     private:
@@ -27,16 +51,18 @@ class VirtualDiskManager
         vector<VirtualDisk*>* vdisks;
         bool open;
 
-        bool createSuperblock(ofstream* newDisk, string diskName, int diskSize, int blockSize,
-                              int blockCount, int inodeBlockCount);
+        bool createSuperblock(ofstream* newDisk, string diskName, char partitionChar, int diskSize, int blockSize, int blockCount,
+                              int dataBlockCount, int inodeSize, int inodeCount, int inodeBlockCount);
         bool createDataBitmap(ofstream* newDisk, int blockCount);
         bool createInodeTable(ofstream* newDisk, int inodeCount);
-        bool createInode(ofstream* newDisk);
+        bool createInodes(ofstream* newDisk, int inodeCount);
 
         bool loadVirtualDisks();
         bool unloadVirtualDisks();
 
         void goToBlock(ofstream* disk, int blockPos, int blockSize);
+
+        int getCurrentBlock(ofstream* disk, int blockSize);
 
 };
 

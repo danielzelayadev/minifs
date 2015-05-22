@@ -6,5 +6,4 @@ Inode::Inode()
 
 Inode::~Inode()
 {
-    delete duration;
 }
