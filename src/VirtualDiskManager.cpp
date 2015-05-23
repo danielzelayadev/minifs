@@ -91,15 +91,27 @@ bool VirtualDiskManager::createSuperblock(ofstream* newDisk, char diskName[30], 
 {
 
       newDisk->seekp(0);
-//      int freeSpace, usedSpace;
 
       SuperBlock sp;
       strcpy(sp.diskName, diskName);
       sp.blockCount = blockCount;
       sp.blockSize = blockSize;
+      sp.filesOnDisk = 0;
       sp.dataBlockCount = dataBlockCount;
       sp.diskSize = diskSize;
+      sp.inodeTableBlockCount = (sizeof(InodeInfo)*inodeCount % blockSize != 0 ?
+      sizeof(InodeInfo)*inodeCount / blockSize + 1 : sizeof(InodeInfo)*inodeCount / blockSize);
+      sp.usedSpace = (blockSize*2) + (sp.inodeTableBlockCount*blockSize) + (inodeBlockCount*blockSize); //Revisar despues
+      sp.freeSpace = diskSize - (blockSize*2) - sp.usedSpace;
+      sp.usedBlocks = 2 + sp.inodeTableBlockCount + inodeBlockCount; //Revisar
+      sp.freeBlocks = blockCount - sp.usedBlocks;
+      sp.initBlocks = 10;
+      sp.blocksPerSI = blockSize / 4;
+      sp.siPerDI = blockSize / 4;
+      sp.blocksPerDI = sp.blocksPerSI * sp.siPerDI;
       sp.inodeBlockCount = inodeBlockCount;
+      sp.usedInodes = 0;
+      sp.freeInodes = inodeCount;
       sp.inodeCount = inodeCount;
       sp.inodeSize = inodeSize;
       sp.partitionChar = partitionChar;
@@ -186,7 +198,14 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->read((char*)&sb, sizeof(SuperBlock));
 
-        //Validar si hay free space y segun eso return false o seguir
+        if(sb.freeSpace == 0)
+        {
+          disk->close();
+          file->close();
+          delete file;
+          delete disk;
+          return false;
+        }
 
         int fileSize = file->tellg();
 
@@ -198,7 +217,6 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->read((char*)&inodeTable, sizeof(inodeTable));
 
-
         int freeInodeIndex = -1;
 
         for(int i = 0; i < sb.inodeCount; i++)
@@ -206,7 +224,8 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
            if(inodeTable[i].free)
            {
               inodeTable[i].free = false;
-              freeInodeIndex = i;
+              strcpy(inodeTable[i].songName, fileName);
+              freeInodeIndex = inodeTable[i].iNumber;
               break;
            }
         }
@@ -220,7 +239,8 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->read((char*)&fileInode, sizeof(Inode));
 
-
+        fileInode.fileSize = fileSize;
+        fileInode.creationTime = time(NULL);
 
         //Conseguir bloques libres necesarios
 
@@ -228,27 +248,57 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         if(fileSize % sb.blockSize != 0) blocksNeeded++;
 
+        fileInode.blocksInUse = blocksNeeded;
+
         goToBlock((ofstream*)disk, 1, sb.blockSize);
 
-        //alloc_DirectBlock() buscar un freeBlockIndex en el bitmap y flush para marcar como ocupado
-        //alloc_IndirectBlock() llamar a alloc_DirectBlock (blockSize / sizeof(int)) cantidad de veces
-        //alloc_DoubleIndirectBlock() llamar a alloc_IndirectBlock (blockSize / sizeof(int)) cantidad de veces
-
-       // alloc_blocks(disk, sb, fileInode, blocksNeeded);
-
-        //Modificar la meta data del disco
-
-        char* data = new char[sb.blockSize];
+        alloc_blocks(disk, sb, fileInode, blocksNeeded);
 
         file->seekg(0);
-        file->read(data, sb.blockSize);
 
-        //cout << data << endl;
+        int ctr = 0;
 
-        goToBlock((ofstream*)disk, 50, sb.blockSize);
+        for(int i = 0; i < blocksNeeded; i++)
+        {
+           char* data = new char[sb.blockSize];
+           file->read(data, sb.blockSize);
+           //cout << data << endl;
 
-        disk->write(data, sb.blockSize);
+           if(i < 10)
+              goToBlock((ofstream*)disk, fileInode.blocks[i], sb.blockSize);
 
+           if(i >= 10 && i < sb.blocksPerSI)
+              goToIndirectBlock(disk, sb, fileInode.singleIndirectBlock, i);
+
+           if(i >= sb.blocksPerSI && i < sb.blocksPerDI)
+           {
+               if(i % sb.blocksPerSI == 0)
+               goToIndirectBlock(disk, sb, fileInode.doubleIndirectBlock, i); //Avanzar de indirecto
+               goToIndirectBlock(disk, sb, fileInode.singleIndirectBlock, ctr); //Avanzar de directo
+               ctr++;
+           }
+
+           disk->write(data, sb.blockSize);
+
+           delete data;
+        }
+
+        //Modificar metadata del disco
+        sb.freeBlocks -= blocksNeeded;
+        sb.usedSpace += fileSize;
+        sb.freeSpace -= fileSize;
+        sb.usedBlocks += blocksNeeded;
+        sb.filesOnDisk++;
+        sb.usedInodes++;
+        sb.freeInodes--;
+
+        goToBlock((ofstream*)disk, 0, sb.blockSize);
+
+        disk->write((char*)&sb, sizeof(SuperBlock));
+
+        disk->close();
+        file->close();
+        delete file;
         delete disk;
         return true;
        }
@@ -280,6 +330,12 @@ int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
           {
              freeBlockIndex = (i*8)+k;
              bitIndex = k;
+             c = toggleBit(c, k);
+
+             disk->seekp(disk->tellp()-1);
+
+             disk->write(&c, sizeof(char));
+
              break;
           }
        }
@@ -292,10 +348,12 @@ int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
 
 int VirtualDiskManager::alloc_singleIndBlock(fstream* disk, SuperBlock sb)
 {
+   return alloc_directBlock(disk, sb);
 }
 
 int VirtualDiskManager::alloc_doubleIndBlock(fstream* disk, SuperBlock sb)
 {
+   return alloc_directBlock(disk, sb);
 }
 
 bool VirtualDiskManager::writeToBlock(fstream* disk, char* data)
@@ -315,15 +373,73 @@ char VirtualDiskManager::toggleBit(char c, int bitPos)
 
 void VirtualDiskManager::alloc_blocks(fstream*disk, SuperBlock sb, Inode inode, int blocksNeeded)
 {
-    int blocksInArr = 10;
-    int blocksPerSI = sb.blockSize / 4;
-    int siPerDI = sb.blockSize / 4;
-    int blocksPerDI = blocksPerSI * siPerDI;
+       int bn = blocksNeeded;
 
-    if(blocksNeeded <= blocksInArr)
-    {
-       for(int i = 0; i < blocksNeeded; i++)
+       for(int i = 0; bn != 0 && i < sb.initBlocks; i++, bn--)
           inode.blocks[i] = alloc_directBlock(disk, sb);
-       return;
-    }
+
+       if(bn != 0)
+       {
+          inode.singleIndirectBlock = alloc_singleIndBlock(disk, sb);
+
+          int siPointers[sb.blocksPerSI]; //Se escribe en el sI
+
+          goToBlock((ofstream*)disk, inode.singleIndirectBlock, sb.blockSize);
+
+          for(int i = 0; bn != 0 && i < sb.blocksPerSI; i++, bn--)
+          {
+              siPointers[i] = alloc_directBlock(disk, sb);
+              disk->write((char*)&siPointers[i], sizeof(int));
+          }
+
+          if(bn != 0)
+          {
+             inode.doubleIndirectBlock = alloc_doubleIndBlock(disk, sb);
+
+             int sibsNeeded = bn / sb.blocksPerSI;
+
+             int remBlocksNeeded = bn - (sibsNeeded * sb.blocksPerSI);
+
+             if(remBlocksNeeded != 0) sibsNeeded++;
+
+             int diPointers[sb.siPerDI]; //Se escribe en el dI
+             int sPts[sibsNeeded][sb.blocksPerSI];  //Se escribe en cada sI que apunta el dI
+
+             for(int i = 0; i < sibsNeeded; i++)
+             {
+                 int lim = i+1 == sibsNeeded && remBlocksNeeded != 0 ? remBlocksNeeded : sb.blocksPerSI;
+
+                 diPointers[i] = alloc_singleIndBlock(disk, sb);
+                 disk->write((char*)&diPointers[i], sizeof(int));
+
+                 goToBlock((ofstream*)disk, diPointers[i], sb.blockSize);
+
+                 for(int k = 0; k < lim; k++)
+                 {
+                    sPts[i][k] = alloc_directBlock(disk, sb);
+                    disk->write((char*)&sPts[i][k], sizeof(int));
+                 }
+
+                 goToBlock((ofstream*)disk, inode.doubleIndirectBlock, sb.blockSize);
+                 disk->seekp(disk->tellp()+(i*4));
+             }
+          }
+
+        }
+
+        //Escribir inodo
+        goToBlock((ofstream*)disk, 2+sb.inodeTableBlockCount, sb.blockSize);
+        disk->seekp(disk->tellp()+(inode.iNumber*sizeof(Inode)));
+
+        disk->write((char*)&inode, sizeof(Inode));
+}
+
+void VirtualDiskManager::goToIndirectBlock(fstream* disk, SuperBlock sb, int ds, int i)
+{
+    goToBlock((ofstream*)disk, ds, sb.blockSize);
+              disk->seekp((i - 10) * 4, ios::cur);
+              disk->seekg(disk->tellp());
+              int block = -1;
+              disk->read((char*)&block, sizeof(int));
+              goToBlock((ofstream*)disk, block, sb.blockSize);
 }

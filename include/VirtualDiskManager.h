@@ -8,23 +8,27 @@
 using namespace std;
 
 struct SuperBlock
-{//descontar la metadata del free space y sumarla al used space.. guardar cuantos bloques de inode table*
+{
   char diskName[30];
   char partitionChar;
   int diskSize;
-  //int freeSpace;
-  //int usedSpaced;
+  int freeSpace;
+  int usedSpace;
+  int filesOnDisk;
   int blockSize;
-  //int usedBlocks;
-  //int freeBlocks;
+  int usedBlocks;
+  int freeBlocks;
   int blockCount;
   int dataBlockCount;
+  int inodeTableBlockCount;
   int inodeSize;
   int inodeCount;
-  //int usedInodes;
-  //int freeInodes;
-  //int blocksISD;
-  //int blocksIDD;
+  int usedInodes;
+  int freeInodes;
+  int initBlocks;
+  int blocksPerSI;
+  int blocksPerDI;
+  int siPerDI;
   int inodeBlockCount;
 };
 
@@ -92,6 +96,8 @@ class VirtualDiskManager
         bool unloadVirtualDisks();
 
         void goToBlock(ofstream* disk, int blockPos, int blockSize);
+
+        void goToIndirectBlock(fstream* disk, SuperBlock sb, int ds, int i);
 
         int getCurrentBlock(ofstream* disk, int blockSize);
 
