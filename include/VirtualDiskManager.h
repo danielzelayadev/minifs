@@ -8,22 +8,30 @@
 using namespace std;
 
 struct SuperBlock
-{
+{//descontar la metadata del free space y sumarla al used space.. guardar cuantos bloques de inode table*
   char diskName[30];
   char partitionChar;
   int diskSize;
+  //int freeSpace;
+  //int usedSpaced;
   int blockSize;
+  //int usedBlocks;
+  //int freeBlocks;
   int blockCount;
   int dataBlockCount;
   int inodeSize;
   int inodeCount;
+  //int usedInodes;
+  //int freeInodes;
+  //int blocksISD;
+  //int blocksIDD;
   int inodeBlockCount;
 };
 
 struct InodeInfo
 {
    int iNumber;
-   char songName[30];
+   char songName[50];
    bool free;
 };
 
@@ -66,6 +74,8 @@ class VirtualDiskManager
         bool isOpen();
         bool createDisk(char diskName[30], int blockCount, int blockSize, int diskSize, char partitionChar);
 
+        bool writeToDisk(char* diskName, char* fileName);
+
 
     private:
 
@@ -84,6 +94,17 @@ class VirtualDiskManager
         void goToBlock(ofstream* disk, int blockPos, int blockSize);
 
         int getCurrentBlock(ofstream* disk, int blockSize);
+
+        bool writeToBlock(fstream* disk, char* data);
+
+        int alloc_directBlock(fstream* disk, SuperBlock sb);
+        int alloc_singleIndBlock(fstream* disk, SuperBlock sb);
+        int alloc_doubleIndBlock(fstream* disk, SuperBlock sb);
+
+        void alloc_blocks(fstream*disk, SuperBlock sb, Inode inode, int blocksNeeded);
+
+        char toggleBit(char c, int bitPos);
+        bool bitIsOn(char c, int bitPos);
 
 };
 
