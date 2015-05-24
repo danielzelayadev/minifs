@@ -341,7 +341,7 @@ int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
              freeBlockIndex = (i*8)+k;
              bitIndex = k;
              c = toggleBit(c, k);
-
+             cout << i << "  " << i*8 << "  " << k << "  " << freeBlockIndex << endl;
              disk->seekp(disk->tellp()-1);
 
              disk->write(&c, sizeof(char));
