@@ -386,7 +386,7 @@ void VirtualDiskManager::alloc_blocks(fstream*disk, SuperBlock sb, Inode inode, 
        int bn = blocksNeeded;
 
        for(int i = 0; bn != 0 && i < sb.initBlocks; i++, bn--)
-          {inode.blocks[i] = alloc_directBlock(disk, sb);}
+          {inode.blocks[i] = alloc_directBlock(disk, sb); cout << inode.blocks[i] << endl;}
 
        if(bn != 0)
        {
