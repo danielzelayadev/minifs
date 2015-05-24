@@ -198,16 +198,16 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->read((char*)&sb, sizeof(SuperBlock));
 
-        if(sb.freeSpace == 0)
-        {
+        int fileSize = file->tellg();
+
+        if(sb.freeSpace < fileSize || fileExists(disk, fileName, sb))
+        {cout << "File exists\n";
           disk->close();
           file->close();
           delete file;
           delete disk;
           return false;
         }
-
-        int fileSize = file->tellg();
 
         goToBlock((ofstream*)disk, 2, sb.blockSize);
 
@@ -226,12 +226,13 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
               inodeTable[i].free = false;
               strcpy(inodeTable[i].songName, fileName);
               freeInodeIndex = inodeTable[i].iNumber;
+              disk->seekp( (sb.blockSize*2) + (sizeof(InodeInfo)*i));
+              disk->write((char*)&inodeTable[i], sizeof(InodeInfo));
               break;
            }
         }
 
-
-        goToBlock((ofstream*)disk, getCurrentBlock((ofstream*)disk, sb.blockSize)+1, sb.blockSize);
+        goToBlock((ofstream*)disk, 2+sb.inodeTableBlockCount, sb.blockSize);
 
         disk->seekg(disk->tellp()+(freeInodeIndex*sb.inodeSize));
 
@@ -285,8 +286,8 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         //Modificar metadata del disco
         sb.freeBlocks -= blocksNeeded;
-        sb.usedSpace += fileSize;
-        sb.freeSpace -= fileSize;
+        sb.usedSpace += blocksNeeded*sb.blockSize;
+        sb.freeSpace -= sb.usedSpace;
         sb.usedBlocks += blocksNeeded;
         sb.filesOnDisk++;
         sb.usedInodes++;
@@ -295,6 +296,15 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
         goToBlock((ofstream*)disk, 0, sb.blockSize);
 
         disk->write((char*)&sb, sizeof(SuperBlock));
+
+        goToBlock((ofstream*)disk, 0, sb.blockSize);
+
+//        SuperBlock sb2;
+//
+//        disk->read((char*)&sb2, sizeof(SuperBlock));
+
+//        cout << sb2.usedInodes << endl;
+//        cout << sb.usedInodes << endl;
 
         disk->close();
         file->close();
@@ -326,7 +336,7 @@ int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
 
        for(int k = 0; k < 8; k++)
        {
-          if(bitIsOn(c, k))
+          if(!bitIsOn(c, k))
           {
              freeBlockIndex = (i*8)+k;
              bitIndex = k;
@@ -376,7 +386,7 @@ void VirtualDiskManager::alloc_blocks(fstream*disk, SuperBlock sb, Inode inode, 
        int bn = blocksNeeded;
 
        for(int i = 0; bn != 0 && i < sb.initBlocks; i++, bn--)
-          inode.blocks[i] = alloc_directBlock(disk, sb);
+          {inode.blocks[i] = alloc_directBlock(disk, sb);}
 
        if(bn != 0)
        {
@@ -442,4 +452,21 @@ void VirtualDiskManager::goToIndirectBlock(fstream* disk, SuperBlock sb, int ds,
               int block = -1;
               disk->read((char*)&block, sizeof(int));
               goToBlock((ofstream*)disk, block, sb.blockSize);
+}
+
+bool VirtualDiskManager::fileExists(fstream* disk, char* fileName, SuperBlock sb)
+{
+    goToBlock((ofstream*)disk, 2, sb.blockSize);
+
+    for(int i = 0; i < sb.inodeCount; i++)
+    {
+       InodeInfo iInfo;
+       disk->read((char*)&iInfo, sizeof(InodeInfo));
+
+       if(strcmp(iInfo.songName, fileName) ==  0)
+         return true;
+
+    }
+
+     return false;
 }

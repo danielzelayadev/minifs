@@ -112,6 +112,8 @@ class VirtualDiskManager
         char toggleBit(char c, int bitPos);
         bool bitIsOn(char c, int bitPos);
 
+        bool fileExists(fstream* disk, char* fileName, SuperBlock sb);
+
 };
 
 #endif // VIRTUALDISKMANAGER_H
