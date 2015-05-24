@@ -3,8 +3,53 @@
 #include <iostream>
 #include <string.h>
 #include <ctime>
+#include <cmath>
 
 #define INODE_BLOCK_PERCENTAGE 0.07
+
+class Converter
+{
+    public:
+       Converter(){}
+
+string toBinary(int num)
+{
+   string str("");
+
+   int ctr = 0;
+
+   while(num > 0)
+   {
+      if(ctr % 4 == 0)
+         str.insert(0, " ");
+
+      if(num % 2 == 0)
+         str.insert(0, "0");
+      else
+         str.insert(0, "1");
+
+      num /= 2;
+      ctr++;
+   }
+
+   return str;
+
+}
+
+int toDecimal(string str)
+{
+   int num = 0;
+
+   for(int i = 0, pw = str.length() - 1; i < str.length(); i++, pw--)
+      if(str.at(i) == '1') num += pow(2, pw);
+
+   return num;
+}
+
+};
+
+
+Converter cv;
 
 VirtualDiskManager::VirtualDiskManager()
 {
@@ -54,7 +99,7 @@ bool VirtualDiskManager::createDisk(char diskName[30], int blockCount, int block
 
        delete buffer;
 
-       int inodeSize = sizeof(Inode), inodeBlockCount = (( diskSize - (3*blockSize) ) * INODE_BLOCK_PERCENTAGE) / blockSize,
+       int inodeSize = sizeof(Inode), inodeBlockCount = (( diskSize - (*blockSize) ) * INODE_BLOCK_PERCENTAGE) / blockSize,
            inodeCount = (inodeBlockCount*blockSize) / inodeSize,
            dataBlockCount = blockCount-(3+inodeBlockCount);
 
@@ -198,7 +243,7 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->read((char*)&sb, sizeof(SuperBlock));
 
-        int fileSize = file->tellg();
+        int fileSize = file->tellg(); cout << fileSize / 1000 << endl;
 
         if(sb.freeSpace < fileSize || fileExists(disk, fileName, sb))
         {cout << "File exists\n";
@@ -208,6 +253,8 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
           delete disk;
           return false;
         }
+
+        cout << disk->tellp() << endl;
 
         goToBlock((ofstream*)disk, 2, sb.blockSize);
 
@@ -266,7 +313,7 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
            //cout << data << endl;
 
            if(i < 10)
-              goToBlock((ofstream*)disk, fileInode.blocks[i], sb.blockSize);
+              goToDataBlock(disk, fileInode.blocks[i], sb);
 
            if(i >= 10 && i < sb.blocksPerSI)
               goToIndirectBlock(disk, sb, fileInode.singleIndirectBlock, i);
@@ -297,7 +344,7 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
         disk->write((char*)&sb, sizeof(SuperBlock));
 
-        goToBlock((ofstream*)disk, 0, sb.blockSize);
+//        goToBlock((ofstream*)disk, 0, sb.blockSize);
 
 //        SuperBlock sb2;
 //
@@ -322,8 +369,9 @@ bool VirtualDiskManager::writeToDisk(char* diskName, char* fileName)
 
 int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
 {
+    disk->seekg(sb.blockSize);
+
     int freeBlockIndex = -1;
-    int bitIndex = -1;
 
     int byteCount = sb.blockCount / 8;
 
@@ -339,11 +387,12 @@ int VirtualDiskManager::alloc_directBlock(fstream* disk, SuperBlock sb)
           if(!bitIsOn(c, k))
           {
              freeBlockIndex = (i*8)+k;
-             bitIndex = k;
              c = toggleBit(c, k);
-             cout << i << "  " << i*8 << "  " << k << "  " << freeBlockIndex << endl;
+             //cout << i << "  " << i*8 << "  " << k << "  " << freeBlockIndex << endl;
+             cout << freeBlockIndex << endl;
+             //cout << cv.toBinary((int)c) << endl;
              disk->seekp(disk->tellp()-1);
-             cout << (bitIsOn(c, k) ? "Yes" : "No") << endl;
+             //cout << (bitIsOn(c, k) ? "Yes" : "No") << endl;
              disk->write(&c, sizeof(char));
 
              break;
@@ -446,12 +495,12 @@ void VirtualDiskManager::alloc_blocks(fstream*disk, SuperBlock sb, Inode inode, 
 
 void VirtualDiskManager::goToIndirectBlock(fstream* disk, SuperBlock sb, int ds, int i)
 {
-    goToBlock((ofstream*)disk, ds, sb.blockSize);
-              disk->seekp((i - 10) * 4, ios::cur);
-              disk->seekg(disk->tellp());
-              int block = -1;
-              disk->read((char*)&block, sizeof(int));
-              goToBlock((ofstream*)disk, block, sb.blockSize);
+    goToDataBlock(disk, ds, sb);
+    disk->seekp((i - 10) * 4, ios::cur);
+    disk->seekg(disk->tellp());
+    int block = -1;
+    disk->read((char*)&block, sizeof(int));
+    goToDataBlock(disk, block, sb);
 }
 
 bool VirtualDiskManager::fileExists(fstream* disk, char* fileName, SuperBlock sb)
@@ -469,4 +518,9 @@ bool VirtualDiskManager::fileExists(fstream* disk, char* fileName, SuperBlock sb
     }
 
      return false;
+}
+
+void VirtualDiskManager::goToDataBlock(fstream* disk, int blockPos, SuperBlock sb)
+{
+   disk->seekp( (2+sb.inodeTableBlockCount+sb.inodeBlockCount * sb.blockSize) + (sb.blockSize*blockPos) );
 }

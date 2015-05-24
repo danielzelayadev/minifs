@@ -96,6 +96,7 @@ class VirtualDiskManager
         bool unloadVirtualDisks();
 
         void goToBlock(ofstream* disk, int blockPos, int blockSize);
+        void goToDataBlock(fstream* disk, int blockPos, SuperBlock sb);
 
         void goToIndirectBlock(fstream* disk, SuperBlock sb, int ds, int i);
 
