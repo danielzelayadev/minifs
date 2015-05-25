@@ -1,11 +1,11 @@
 #include "Block.h"
 
-Block::Block()
+Block::Block(int blockSize)
 {
-    //ctor
+    data = new char[blockSize];
 }
 
 Block::~Block()
 {
-    //dtor
+    delete data;
 }

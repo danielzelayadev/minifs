@@ -7,66 +7,6 @@
 
 using namespace std;
 
-struct SuperBlock
-{
-  char diskName[30];
-  char partitionChar;
-  int diskSize;
-  int freeSpace;
-  int usedSpace;
-  int filesOnDisk;
-  int blockSize;
-  int usedBlocks;
-  int freeBlocks;
-  int blockCount;
-  int dataBlockCount;
-  int inodeTableBlockCount;
-  int inodeSize;
-  int inodeCount;
-  int usedInodes;
-  int freeInodes;
-  int initBlocks;
-  int blocksPerSI;
-  int blocksPerDI;
-  int siPerDI;
-  int inodeBlockCount;
-};
-
-struct InodeInfo
-{
-   int iNumber;
-   char songName[50];
-   bool free;
-};
-
-struct Inode
-{
-  //Song Meta
-        char artist[30];
-        char album[30];
-        int songTime;
-
-        //File Meta
-        int iNumber;
-        int fileSize;
-
-        char ownerId[2];
-        char openMode[2];
-
-        int creationTime;
-        int modTime;
-        int deleteTime;
-        int lastAccessTime;
-
-        int blocksInUse;
-        int flags;
-
-        int blocks[10];
-
-        int singleIndirectBlock;
-        int doubleIndirectBlock;
-};
-
 class VirtualDiskManager
 {
     public:

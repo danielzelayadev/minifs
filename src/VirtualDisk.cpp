@@ -1,11 +1,17 @@
 #include "VirtualDisk.h"
 
-VirtualDisk::VirtualDisk()
+VirtualDisk::VirtualDisk(SuperBlock* sb, Bitmap* bitmap, InodeTable* iTable, Inode* inodes)
 {
-    //ctor
+    this->superBlock = sb;
+    this->bitmap = bitmap;
+    this->inodeTable = iTable;
+    this->inodes = inodes;
 }
 
 VirtualDisk::~VirtualDisk()
 {
-    //dtor
+    delete superBlock;
+    delete bitmap;
+    delete inodeTable;
+    delete inodes;
 }

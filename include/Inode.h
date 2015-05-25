@@ -1,18 +1,15 @@
 #ifndef INODE_H
 #define INODE_H
 
-class Inode
+struct _Inode
 {
-    public:
-        Inode();
-        virtual ~Inode();
-
-        //Song Meta
+  //Song Meta
         char artist[30];
         char album[30];
         int songTime;
 
         //File Meta
+        int iNumber;
         int fileSize;
 
         char ownerId[2];
@@ -30,6 +27,22 @@ class Inode
 
         int singleIndirectBlock;
         int doubleIndirectBlock;
+};
+
+class Inode
+{
+    public:
+        Inode(_Inode inode);
+        virtual ~Inode();
+
+        _Inode* getStruct();
+
+        void printDirectBlocks();
+
+        void printInode();
+
+        private:
+            _Inode* inode;
 
 };
 
