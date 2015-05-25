@@ -28,6 +28,9 @@ void Inode::printInode()
    cout << "Delete Time: " << inode->deleteTime << endl;
    cout << "Last Access Time: " << inode->lastAccessTime << endl;
    cout << "Blocks in Use: " << inode->blocksInUse << endl;
+//   cout << "Direct Blocks in Use: " << inode->directsInUse << endl;
+//   cout << "Single Indirect Blocks in Use: " << inode->sIndirectsInUse << endl;
+//   cout << "Double Indirect Blocks in Use: " << inode->dIndirectsInUse << endl;
    cout << "Flags: " << inode->flags << endl;
    cout << "Direct Blocks: " << endl;
    printDirectBlocks();

@@ -19,6 +19,7 @@ struct _SuperBlock
   int freeDataSpace;
   int usedDataSpace;
   int bitmapBlockCount;
+  int metadataBlockCount;
   int inodeTableBlockCount;
   int inodeSize;
   int inodeCount;

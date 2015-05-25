@@ -15,7 +15,8 @@ InodeTable::InodeTable(int inodeCount)
 InodeTable::InodeTable(InodeInfo* inodeTable, int tableSize)
 {
     this->tableSize = tableSize;
-    this->inodeTable = inodeTable;
+    this->inodeTable = new InodeInfo[(tableSize*sizeof(InodeInfo))];
+    memcpy(this->inodeTable, inodeTable, (tableSize*sizeof(InodeInfo)));
 }
 
 InodeTable::~InodeTable()
@@ -35,12 +36,7 @@ InodeInfo* InodeTable::getInodeInfo(char* fileName)
 
 InodeInfo* InodeTable::getInodeInfo(int iNumber)
 {
-   for(int i = 0; i < tableSize; i++)
-    {
-        if(inodeTable[i].iNumber == iNumber)
-          return &inodeTable[i];
-    }
-    return nullptr;
+   return &inodeTable[iNumber];
 }
 
 InodeInfo* InodeTable::getFreeInodeInfo()
@@ -50,6 +46,7 @@ InodeInfo* InodeTable::getFreeInodeInfo()
         if(inodeTable[i].free)
           return &inodeTable[i];
     }
+
     return nullptr;
 }
 
@@ -80,13 +77,10 @@ void InodeTable::printInodeInfo(InodeInfo* iInfo)
 {
    if(!iInfo) return;
 
-   for(int i = 0; i < tableSize; i++)
-   {
-       cout << "Song Name: " << inodeTable[i].songName << endl;
-       cout << "iNumber: " << inodeTable[i].iNumber << endl;
-       cout << "Free: " << (inodeTable[i].free ? "Yes" : "No") << endl;
+       cout << "Song Name: " << inodeTable[iInfo->iNumber].songName << endl;
+       cout << "iNumber: " << inodeTable[iInfo->iNumber].iNumber << endl;
+       cout << "Free: " << (inodeTable[iInfo->iNumber].free ? "Yes" : "No") << endl;
        cout << endl;
-   }
 
    cout << endl;
 }

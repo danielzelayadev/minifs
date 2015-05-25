@@ -21,6 +21,9 @@ struct _Inode
         int lastAccessTime;
 
         int blocksInUse;
+//        int directsInUse;
+//        int sIndirectsInUse;
+//        int dIndirectsInUse;
         int flags;
 
         int blocks[10];
