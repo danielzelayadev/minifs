@@ -11,7 +11,7 @@ VirtualDisk::VirtualDisk(char diskName[30], char partitionChar, int blockSize, i
     bitmap = nullptr;
     inodeTable = nullptr;
 
-    initialize(diskName, partitionChar, blockCount, blockCount);
+    initialize(diskName, partitionChar, blockSize, blockCount);
 }
 
 VirtualDisk::VirtualDisk(char diskName[30])
@@ -33,6 +33,8 @@ VirtualDisk::~VirtualDisk()
 
 void VirtualDisk::initialize(char diskName[30], char partitionChar, int blockSize, int blockCount)
 {
+     disk = new fstream(diskName, ios::binary | ios::out);
+
      int diskSize = blockCount*blockSize;
 
      char* buffer = new char[diskSize];
@@ -56,7 +58,7 @@ void VirtualDisk::createSuperBlock(char diskName[30], char partitionChar, int di
       if(byteCount % 8 != 0) byteCount++;
 
       int bitmapBlockCount =  byteCount / blockSize;
-      if(bitmapBlockCount % blockSize != 0) bitmapBlockCount++;
+      if(byteCount % blockSize != 0) bitmapBlockCount++;
 
       int inodeSize = sizeof(_Inode);
       int inodeBlockCount = ( ( diskSize - ( (1+bitmapBlockCount)*blockSize) ) * INODE_BLOCK_PERCENTAGE) / blockSize;
@@ -136,14 +138,15 @@ void VirtualDisk::flushBitmap()
 
 void VirtualDisk::createInodeTable(int inodeCount)
 {
-    inodeTable = new InodeTable(inodeCount);
+    InodeInfo* table = new InodeInfo[inodeCount];
 
     for(int i = 0; i < inodeCount; i++)
     {
-       InodeInfo* iInfo = inodeTable->getInodeInfo(i);
+       InodeInfo* iInfo = &table[i];
        iInfo->iNumber = i;
        iInfo->free = true;
     }
+    inodeTable = new InodeTable(table, inodeCount);
 
     flushInodeTable();
 }
@@ -201,12 +204,20 @@ void VirtualDisk::printSuperBlock()
 
 void VirtualDisk::printBitmap()
 {
-  for(int i = 0; i < bitmap->getSize(); i++)
-  {
-    cout << bitmap->bitIsOn(i);
+  int ons = 0, offs = 0;
 
-    if(i % 8 == 0) cout << endl;
+  for(int i = 0; i < bitmap->getBitCount(); i++)
+  {
+    bool isOn = bitmap->bitIsOn(i);
+
+    isOn ? ons++ : offs++;
+
+    cout << isOn;
+
+    if((i+1) % 8 == 0) cout << endl;
   }
+
+  cout << "\nOns: " << ons << "\nOffs: " << offs << endl;
 }
 
 void VirtualDisk::printInodeTable()

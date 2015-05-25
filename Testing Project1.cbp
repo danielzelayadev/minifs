@@ -34,15 +34,19 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="include/Bitmap.h" />
 		<Unit filename="include/Block.h" />
-		<Unit filename="include/Duration.h" />
 		<Unit filename="include/Inode.h" />
+		<Unit filename="include/InodeTable.h" />
+		<Unit filename="include/SuperBlock.h" />
 		<Unit filename="include/VirtualDisk.h" />
 		<Unit filename="include/VirtualDiskManager.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="src/Bitmap.cpp" />
 		<Unit filename="src/Block.cpp" />
-		<Unit filename="src/Duration.cpp" />
 		<Unit filename="src/Inode.cpp" />
+		<Unit filename="src/InodeTable.cpp" />
+		<Unit filename="src/SuperBlock.cpp" />
 		<Unit filename="src/VirtualDisk.cpp" />
 		<Unit filename="src/VirtualDiskManager.cpp" />
 		<Extensions>
