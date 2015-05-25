@@ -7,6 +7,10 @@
 
 using namespace std;
 
+//Create
+//Select
+//Delete
+
 class VirtualDiskManager
 {
     public:
@@ -16,6 +20,7 @@ class VirtualDiskManager
         bool openVDiskManager();
         bool closeVDiskManager();
         bool isOpen();
+
         bool createDisk(char diskName[30], int blockCount, int blockSize, int diskSize, char partitionChar);
 
         bool writeToDisk(char* diskName, char* fileName);

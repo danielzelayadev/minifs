@@ -31,6 +31,7 @@ void SuperBlock::printSuperBlock()
        cout << "Used Blocks: "<< sb->usedBlocks << endl;
        cout << "Free Blocks: "<< sb->freeBlocks << endl;
        cout << "Block Count: "<< sb->blockCount << endl;
+       cout << "Bitmap Block Count: "<< sb->bitmapBlockCount << endl;
        cout << "Data Block Count: "<< sb->dataBlockCount << endl;
        cout << "Free Data Blocks: "<< sb->freeDataBlocks << endl;
        cout << "Used Data Blocks: "<< sb->usedDataBlocks << endl;

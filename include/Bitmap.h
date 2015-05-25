@@ -18,6 +18,9 @@ class Bitmap
 
         int getBitCount();
 
+        char* getBitmap() { return bitmap; }
+        int getSize() { int byteCount = bitCount / 8; if(bitCount % 8 != 0) byteCount++; return byteCount;}
+
     private:
         char* bitmap;
 
