@@ -72,6 +72,8 @@ class VirtualDisk
         void writeToDirectBlocks(ifstream* file, int* bn, int* blocks, int blockCount);
         void writeToSIBlock(ifstream* file, _Inode* inode, int* bn, int indDir);
         void writeToDIBlock(ifstream* file, _Inode* inode, int* bn);
+
+        char* loadFile(char* fileName);
 };
 
 #endif // VIRTUALDISK_H

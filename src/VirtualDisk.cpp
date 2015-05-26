@@ -209,6 +209,7 @@ void VirtualDisk::writeFile(char* fileName)
        //Conseguir inode asociado
        Inode* fileInode = loadInode(iInfo->iNumber);
        fileInode->getStruct()->blocksInUse = blocksNeeded;
+       fileInode->getStruct()->fileSize = fileSize;
 
        //Alocar bloques para el archivo
        alloc_blocks(fileInode->getStruct());
@@ -248,7 +249,7 @@ void VirtualDisk::write(ifstream* file, _Inode* inode)
        writeToSIBlock(file, inode, &bn, inode->singleIndirectBlock);
 
      if(bn > 0)
-       writeToDIBlock(file, inode, &bn);
+       writeToDIBlock(file, inode, &bn); //509 bloques, 2 600 000 bytes, 2.6 MB,
 
 }
 
@@ -279,7 +280,7 @@ void VirtualDisk::writeToSIBlock(ifstream* file, _Inode* inode, int* bn, int ind
 
      disk->seekp(indDir*sb.blockSize);
 
-     disk->read((char*)blocks, sb.blocksPerSI);
+     disk->read((char*)blocks, sb.blockSize);
 
      writeToDirectBlocks(file, bn, blocks, sb.blocksPerSI);
 
@@ -333,7 +334,9 @@ void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int mode)
 
     int* pointers = new int[sb.blocksPerSI];
 
-    for(int i = 0; *blocksNeeded > 0 && i < sb.blocksPerSI; i++, *blocksNeeded--)
+    int jtc = 0;
+
+    for(int i = 0; (*blocksNeeded) > 0 && i < sb.blocksPerSI; i++, (*blocksNeeded)--)
         pointers[i] = alloc_block();
 
     writePointersToBlock(pointers, siDir);
@@ -349,7 +352,7 @@ void VirtualDisk::alloc_dIndirect(_Inode* inode, int* blocksNeeded)
 
    int* pointers = new int[sb.siPerDI];
 
-   for(int i = 0; *blocksNeeded > 0 && i < sb.siPerDI; i++, *blocksNeeded-=sb.blocksPerSI)
+   for(int i = 0; (*blocksNeeded) > 0 && i < sb.siPerDI; i++, (*blocksNeeded)-=sb.blocksPerSI)
    {
        pointers[i] = alloc_block(); //Alocamos uno indirect
        alloc_sIndirect(inode, blocksNeeded, FDI); //Alocamos los necesarios directos
@@ -366,7 +369,7 @@ void VirtualDisk::writePointersToBlock(int* pointers, int blockPos)
 
     disk->seekp(blockPos*sb.blockSize);
 
-    disk->write((char*)pointers, sb.blocksPerSI);
+    disk->write((char*)pointers, sb.blockSize);
 }
 
 int VirtualDisk::alloc_block()
@@ -417,13 +420,14 @@ int VirtualDisk::getBlocksNeeded(int fileSize)
   return blocksNeeded;
 }
 
+void VirtualDisk::exportFile(char* fileName, char* destination)
+{
+   char* data = loadFile(fileName);
+}
+
 void VirtualDisk::readFile(char* fileName)
 {
-     //Buscar en el inode table si existe
-     //Ir al inode
-     //Leer bloque por bloque y:
-    //armar el archivo en un buffer de data
-    //De ahi esta listo para manipularse
+   char* data = loadFile(fileName);
 }
 
 void VirtualDisk::deleteFile(char* fileName)
@@ -443,6 +447,7 @@ void VirtualDisk::loadSuperBlock()
    disk->read((char*)&sb, sizeof(_SuperBlock));
 
    superBlock = new SuperBlock(sb);
+
 }
 
 void VirtualDisk::loadBitmap()
@@ -499,4 +504,20 @@ void VirtualDisk::printBitmap()
 void VirtualDisk::printInodeTable()
 {
    inodeTable->printTable();
+}
+
+void VirtualDisk::printInode(int iNumber)
+{
+   InodeInfo iInfo = *inodeTable->getInodeInfo(iNumber);
+   cout << iInfo.free << endl;
+}
+
+char* VirtualDisk::loadFile(char* fileName)
+{
+   //Buscar en el inode table si existe
+     //Ir al inode
+     //Leer bloque por bloque y:
+    //armar el archivo en un buffer de data
+    //De ahi esta listo para manipularse
+   InodeInfo* iInfo = inodeTable->getInodeInfo(fileName);
 }
