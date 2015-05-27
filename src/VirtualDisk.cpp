@@ -19,9 +19,12 @@ VirtualDisk::VirtualDisk(char diskName[30], char partitionChar, int blockSize, i
 VirtualDisk::VirtualDisk(char diskName[30])
 {
     disk = new fstream(diskName, ios::binary | ios::in | ios::out | ios::ate);
-    loadSuperBlock();
-    loadBitmap();
-    loadInodeTable();
+    if(disk->is_open())
+    {
+       loadSuperBlock();
+       loadBitmap();
+       loadInodeTable();
+    }
 }
 
 VirtualDisk::~VirtualDisk()
@@ -180,7 +183,7 @@ void VirtualDisk::flushInode(_Inode inode)
 {
    _SuperBlock sb = *superBlock->getStruct();
 
-   disk->seekp(sb.blockSize * (1+sb.bitmapBlockCount+sb.inodeTableBlockCount) + (sizeof(_Inode) * inode.iNumber));
+   disk->seekp( (sb.blockSize * (1+sb.bitmapBlockCount+sb.inodeTableBlockCount)) + (sizeof(_Inode) * inode.iNumber));
 
    disk->write((char*)&inode, sizeof(_Inode));
 
@@ -207,15 +210,15 @@ void VirtualDisk::writeFile(char* fileName)
        strcpy(iInfo->songName, fileName);
 
        //Conseguir inode asociado
-       Inode* fileInode = loadInode(iInfo->iNumber);
-       fileInode->getStruct()->blocksInUse = blocksNeeded;
-       fileInode->getStruct()->fileSize = fileSize;
+       loadedInode = loadInode(iInfo->iNumber);
+       loadedInode->getStruct()->blocksInUse = blocksNeeded;
+       loadedInode->getStruct()->fileSize = fileSize;
 
        //Alocar bloques para el archivo
-       alloc_blocks(fileInode->getStruct());
+       alloc_blocks(loadedInode->getStruct());
 
        //Escribir el archivo en los bloques
-       write(file, fileInode->getStruct());
+       write(file, loadedInode->getStruct());
 
        //Update  structs and flush to disk
        sb->filesOnDisk++;
@@ -233,7 +236,7 @@ void VirtualDisk::writeFile(char* fileName)
        flushSuperBlock();
        flushBitmap();
        flushInodeTable();
-       flushInode(*fileInode->getStruct());
+       flushInode(*loadedInode->getStruct());
    }
 
    file->close();
@@ -389,7 +392,7 @@ int VirtualDisk::alloc_block()
 Inode* VirtualDisk::loadInode(int iNumber)
 {
    _SuperBlock sb = *superBlock->getStruct();
-   disk->seekp(1+sb.bitmapBlockCount+sb.inodeTableBlockCount+(sizeof(_Inode)*iNumber));
+   disk->seekp( (sb.blockSize*(1+sb.bitmapBlockCount+sb.inodeTableBlockCount))+(sizeof(_Inode)*iNumber));
 
    _Inode inode;
 
@@ -423,19 +426,57 @@ int VirtualDisk::getBlocksNeeded(int fileSize)
 void VirtualDisk::exportFile(char* fileName, char* destination)
 {
    char* data = loadFile(fileName);
-}
 
-void VirtualDisk::readFile(char* fileName)
-{
-   char* data = loadFile(fileName);
+   if(!data) return;
+
+   ofstream* exportedFile = new ofstream(destination, ios::binary);
+
+   exportedFile->write(data, loadedInode->getStruct()->fileSize);
+
+//   cout << data  << endl;
+
+   exportedFile->close();
+
+//   flushInode(*loadedInode->getStruct());
+   delete exportedFile;
+//   delete loadedInode;
 }
 
 void VirtualDisk::deleteFile(char* fileName)
 {
-   //Buscar en el inode table si existe
-   //Marcar como free
-   //Liberar bloques del bitmap
+   _SuperBlock* sb = superBlock->getStruct();
+
+   InodeInfo* iInfo = inodeTable->getInodeInfo(fileName);
+
+   if(!iInfo) return;
+
+   iInfo->free = true;
+
+   loadedInode = loadInode(iInfo->iNumber);
+   _Inode* inode = loadedInode->getStruct();
+   inode->deleteTime = time(NULL);
+
+   int blocksNeeded = inode->blocksInUse;
+
+   //Liberar bloques del bitmap(todo el rollo de conseguir los pointers, recorrer en el bitmap y apagar)
+
    //Update and flush
+       sb->filesOnDisk--;
+       sb->freeBlocks += blocksNeeded;
+       sb->freeDataBlocks += blocksNeeded;
+       sb->freeDataSpace += (blocksNeeded*sb->blockSize);
+       sb->freeInodes++;
+       sb->freeSpace += (blocksNeeded*sb->blockSize);
+       sb->usedBlocks -= blocksNeeded;
+       sb->usedDataBlocks -= blocksNeeded;
+       sb->usedDataSpace -= (blocksNeeded*sb->blockSize);
+       sb->usedInodes--;
+       sb->usedSpace -= (blocksNeeded*sb->blockSize);
+
+       flushSuperBlock();
+       flushBitmap();
+       flushInodeTable();
+       flushInode(*loadedInode->getStruct());
 }
 
 void VirtualDisk::loadSuperBlock()
@@ -508,16 +549,168 @@ void VirtualDisk::printInodeTable()
 
 void VirtualDisk::printInode(int iNumber)
 {
-   InodeInfo iInfo = *inodeTable->getInodeInfo(iNumber);
-   cout << iInfo.free << endl;
+   InodeInfo* iInfo = inodeTable->getInodeInfo(iNumber);
+
+   if(!iInfo) return;
+
+   _SuperBlock sb = *superBlock->getStruct();
+
+   disk->seekp( (sb.blockSize* (1+sb.bitmapBlockCount+sb.inodeTableBlockCount)) + (sizeof(_Inode)*iNumber));
+
+   _Inode inode;
+
+   disk->read((char*)&inode, sizeof(_Inode));
+
+   Inode fileInode(inode);
+
+   fileInode.printInode();
 }
 
 char* VirtualDisk::loadFile(char* fileName)
 {
-   //Buscar en el inode table si existe
-     //Ir al inode
-     //Leer bloque por bloque y:
-    //armar el archivo en un buffer de data
-    //De ahi esta listo para manipularse
+   _SuperBlock sb = *superBlock->getStruct();
+
    InodeInfo* iInfo = inodeTable->getInodeInfo(fileName);
+
+   if(!iInfo) return nullptr;
+
+   loadedInode = loadInode(iInfo->iNumber);
+   _Inode inode = *loadedInode->getStruct();
+
+   char* fileData = new char[inode.fileSize];
+
+   int bn = inode.blocksInUse;
+   int blockIndex = 0;
+
+   int initCount = 0, siCount =  0, diCount = 0, lastBlockCount = 0;
+
+   calculateBlocksNeededByCat(bn, &initCount, &siCount, &diCount, &lastBlockCount);
+
+   cout << "Here1" << endl;
+
+   for(int i = 0; bn > 0 && i < sb.initBlocks; i++, blockIndex++, bn--)
+   {
+        char* blockData = new char[sb.blockSize];
+
+        disk->seekp(sb.blockSize*inode.blocks[i]);
+
+        disk->read(blockData, sb.blockSize);
+
+        loadBlockData(fileData, blockData, blockIndex);
+   }
+
+   if(bn > 0)
+      loadSI(sb, inode, inode.singleIndirectBlock, fileData, &blockIndex, &bn);
+
+   if(bn > 0)
+   {
+      int* diPointers = getDIndirectPointers(inode.doubleIndirectBlock);
+
+      for(int i = 0; bn > 0 && i < (siCount-1); i++)
+         loadSI(sb, inode, diPointers[i], fileData, &blockIndex, &bn);
+   }
+
+   return fileData;
+}
+
+void VirtualDisk::loadBlockData(char* fileData, char* blockData, int blockIndex)
+{
+    _SuperBlock sb = *superBlock->getStruct();
+
+    for(int i = 0; i < sb.blockSize; i++)
+       fileData[(sb.blockSize * blockIndex)+i] = blockData[i];
+}
+
+void VirtualDisk::loadSI(_SuperBlock sb, _Inode inode, int siDir, char* fileData, int* blockIndex, int* bn)
+{
+   int* siPointers = getSIndirectPointers(siDir);
+
+      for(int i = 0; (*bn) > 0 && i < sb.initBlocks; i++, (*blockIndex)++, (*bn)--)
+      {
+        char* blockData = new char[sb.blockSize];
+
+        disk->seekp(sb.blockSize*siPointers[i]);
+
+        disk->read(blockData, sb.blockSize);
+
+        loadBlockData(fileData, blockData, (*blockIndex));
+
+        delete blockData;
+      }
+}
+
+int* VirtualDisk::getSIndirectPointers(int siBlockDir)
+{
+    _SuperBlock sb = *superBlock->getStruct();
+
+    disk->seekp(sb.blockSize*siBlockDir);
+
+    int* siPointers = new int[sb.blocksPerSI];
+
+    disk->read((char*)siPointers, sb.blockSize);
+
+    return siPointers;
+}
+
+int* VirtualDisk::getDIndirectPointers(int diBlockDir)
+{
+    return getSIndirectPointers(diBlockDir);
+}
+
+void VirtualDisk::calculateBlocksNeededByCat(int blocksNeeded, int* initCount, int* siCount, int* diCount, int* lastSIBlockCount)
+{
+   int blockSize = superBlock->getStruct()->blockSize;
+   int initBlocks = superBlock->getStruct()->initBlocks, siBlocks = superBlock->getStruct()->blocksPerSI,
+   diSIs = superBlock->getStruct()->siPerDI;
+
+   *initCount = 0, *siCount = 0, *diCount = 0, *lastSIBlockCount = 0;
+
+    if(blocksNeeded >= initBlocks)
+    {
+       (*initCount) = 10;
+       blocksNeeded -= (*initCount);
+
+       if(blocksNeeded >= siBlocks)
+       {
+          (*siCount)++;
+          blocksNeeded -= siBlocks;
+
+          if(blocksNeeded > 0)
+          {
+             (*diCount) = 1;
+
+             int siNeeded = blocksNeeded / siBlocks;
+             (*lastSIBlockCount) = blocksNeeded - (siNeeded*siBlocks);
+             if(blocksNeeded % siBlocks != 0) siNeeded++;
+
+             siCount += siNeeded;
+
+             blocksNeeded = 0;
+
+          }
+
+       }
+
+       else (*siCount) = blocksNeeded;
+
+    }
+    else (*initCount) = blocksNeeded;
+
+    cout << "Init Needed: " << (*initCount) << endl;
+    cout << "SI Needed: " << (*siCount) << endl;
+    cout << "DI Needed: " << (*diCount) << endl;
+    cout << "REM: " << (*lastSIBlockCount) << endl;
+}
+
+int VirtualDisk::getFileSize(char* fileName)
+{
+   InodeInfo info = *inodeTable->getInodeInfo(fileName);
+
+   Inode* inode = loadInode(info.iNumber);
+
+   int fileSize = inode->getStruct()->fileSize;
+
+   delete inode;
+
+   return fileSize;
 }

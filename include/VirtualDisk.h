@@ -23,7 +23,6 @@ class VirtualDisk
         virtual ~VirtualDisk();
 
         void writeFile(char* fileName);
-        void readFile(char* fileName);
         void deleteFile(char* fileName);
         void exportFile(char* fileName, char* destination);
 
@@ -37,7 +36,7 @@ class VirtualDisk
         Bitmap* bitmap;
         InodeTable* inodeTable;
 
-        //Inode* lastInode;
+        Inode* loadedInode;
 
         fstream* disk;
 
@@ -74,6 +73,15 @@ class VirtualDisk
         void writeToDIBlock(ifstream* file, _Inode* inode, int* bn);
 
         char* loadFile(char* fileName);
+        void loadBlockData(char* fileData, char* blockData, int blockIndex);
+        int* getSIndirectPointers(int siBlockDir);
+        int* getDIndirectPointers(int diBlockDir);
+        void calculateBlocksNeededByCat(int blocksNeeded, int* initCount, int* siCount, int* diCount, int* lastSIBlockCount);
+
+        void loadSI(_SuperBlock sb, _Inode inode, int siDir, char* fileData, int* blockIndex, int* bn);
+
+        int getFileSize(char* fileName);
+
 };
 
 #endif // VIRTUALDISK_H

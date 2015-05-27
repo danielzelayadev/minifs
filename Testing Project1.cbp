@@ -36,6 +36,7 @@
 		</Compiler>
 		<Unit filename="include/Bitmap.h" />
 		<Unit filename="include/Block.h" />
+		<Unit filename="include/IndirectBlock.h" />
 		<Unit filename="include/Inode.h" />
 		<Unit filename="include/InodeTable.h" />
 		<Unit filename="include/SuperBlock.h" />
@@ -44,6 +45,7 @@
 		<Unit filename="main.cpp" />
 		<Unit filename="src/Bitmap.cpp" />
 		<Unit filename="src/Block.cpp" />
+		<Unit filename="src/IndirectBlock.cpp" />
 		<Unit filename="src/Inode.cpp" />
 		<Unit filename="src/InodeTable.cpp" />
 		<Unit filename="src/SuperBlock.cpp" />
