@@ -42,9 +42,9 @@ void VirtualDisk::initialize(char diskName[30], char partitionChar, int blockSiz
 
      int diskSize = blockCount*blockSize;
 
-     char* buffer = new char[diskSize];
-
-     disk->write(buffer, diskSize);
+     char c = '\0';
+     for(int i = 0; i < diskSize; i++)
+     disk->write(&c, sizeof(char));
 
      createSuperBlock(diskName, partitionChar, diskSize, blockSize, blockCount);
 
@@ -53,8 +53,6 @@ void VirtualDisk::initialize(char diskName[30], char partitionChar, int blockSiz
      createBitmap(blockCount);
      createInodeTable(sb.inodeCount);
      createInodes(sb.inodeCount);
-
-     delete buffer;
 }
 
 void VirtualDisk::createSuperBlock(char diskName[30], char partitionChar, int diskSize, int blockSize, int blockCount)
@@ -217,7 +215,6 @@ void VirtualDisk::writeFile(char* fileName)
        //Alocar bloques para el archivo
        alloc_blocks(loadedInode->getStruct());
 
-       cout << blocksNeeded << endl;
        //Escribir el archivo en los bloques
        write(file, loadedInode->getStruct());
 
@@ -326,7 +323,7 @@ void VirtualDisk::alloc_blocks(_Inode* inode)
       alloc_dIndirect(inode, &blocksNeeded);
 
 }
-int hmt = 0;
+
 void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int* siDir)
 {
     *siDir = alloc_block();
@@ -338,19 +335,9 @@ void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int* siDir)
     int bn = *blocksNeeded;
 
     for(int i = 0; (*blocksNeeded) > 0 && i < sb.blocksPerSI; i++, (*blocksNeeded)--)
-        {hmt++; cout << hmt << endl; pointers[i] = alloc_block();}
+        pointers[i] = alloc_block();
 
     writePointersToBlock(pointers, *siDir);
-
-//    if((*blocksNeeded) == 0) //FDI)
-//   {
-//        disk->seekp(320296960);//disk->tellp()-sb.blockSize);
-//
-//        disk->read((char*)pointers, sb.blockSize);
-//
-//        for(int i = 0; bn > 0 && i < sb.blocksPerSI; i++,bn--)
-//        cout << "Pointer " << i << " at SI Block: " << pointers[i] << endl;
-//   }
 
     delete pointers;
 }
@@ -358,17 +345,13 @@ void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int* siDir)
 void VirtualDisk::alloc_dIndirect(_Inode* inode, int* blocksNeeded)
 {
    inode->doubleIndirectBlock = alloc_block();
-//   cout << inode->doubleIndirectBlock << endl;
 
    _SuperBlock sb = *superBlock->getStruct();
 
    int* pointers = new int[sb.siPerDI];
 
    for(int i = 0; (*blocksNeeded) > 0 && i < sb.siPerDI; i++)
-   {
-       alloc_sIndirect(inode, blocksNeeded, &pointers[i]); //Alocamos los necesarios directos
-       cout << "SI Block Dir en la Pos " << i << " del DI: " << pointers[i] << endl;
-   }
+       alloc_sIndirect(inode, blocksNeeded, &pointers[i]);
 
    writePointersToBlock(pointers, inode->doubleIndirectBlock);
 
@@ -380,7 +363,6 @@ void VirtualDisk::writePointersToBlock(int* pointers, int blockPos)
     _SuperBlock sb = *superBlock->getStruct();
 
     disk->seekp(blockPos*sb.blockSize);
-//    cout << "Block Pos: " << blockPos << "\tDisk Pos: " <<blockPos*sb.blockSize << endl;
 
     disk->write((char*)pointers, sb.blockSize);
 }
@@ -443,8 +425,6 @@ void VirtualDisk::exportFile(char* fileName, char* destination)
 
    exportedFile->write(data, loadedInode->getStruct()->fileSize);
 
-//   cout << data  << endl;
-
    exportedFile->close();
 
 //   flushInode(*loadedInode->getStruct());
@@ -469,6 +449,28 @@ void VirtualDisk::deleteFile(char* fileName)
    int blocksNeeded = inode->blocksInUse;
 
    //Liberar bloques del bitmap(todo el rollo de conseguir los pointers, recorrer en el bitmap y apagar)
+   for(int i = 0; blocksNeeded > 0 && i < sb->initBlocks; i++, blocksNeeded--)
+      bitmap->toggleBit(inode->blocks[i]);
+
+   if(blocksNeeded > 0)
+   {
+      int* siPtrs = getSIndirectPointers(inode->singleIndirectBlock);
+
+      for(int i = 0; blocksNeeded > 0 && i < sb->blocksPerSI; i++, blocksNeeded--)
+         bitmap->toggleBit(siPtrs[i]);
+   }
+
+   if(blocksNeeded > 0)
+   {
+      int* diPtrs = getDIndirectPointers(inode->doubleIndirectBlock);
+
+      for(int i = 0; blocksNeeded > 0 && i < sb->siPerDI; i++)
+      {
+          int* siPtrs = getDIndirectPointers(diPtrs[i]);
+          for(int k = 0; blocksNeeded > 0 && k < sb->blocksPerSI; k++, blocksNeeded--)
+             bitmap->toggleBit(siPtrs[i]);
+      }
+   }
 
    //Update and flush
        sb->filesOnDisk--;
@@ -592,10 +594,6 @@ char* VirtualDisk::loadFile(char* fileName)
    int bn = inode.blocksInUse;
    int blockIndex = 0;
 
-//   int initCount = 0, siCount =  0, diCount = 0, lastBlockCount = 0;
-//
-//   calculateBlocksNeededByCat(bn, &initCount, &siCount, &diCount, &lastBlockCount);
-
    for(int i = 0; bn > 0 && i < sb.initBlocks; i++, blockIndex++, bn--)
    {
         char* blockData = new char[sb.blockSize];
@@ -632,10 +630,10 @@ void VirtualDisk::loadBlockData(char* fileData, char* blockData, int blockIndex)
        if(pos >= loadedInode->getStruct()->fileSize) return;
 
        fileData[pos] = blockData[i];
-    }//Se pega un poco de basura asi que hay que cancelar cuando el
-       //archivo se termine
+    }
+
 }
-int ctr = 1;
+
 void VirtualDisk::loadSI(_SuperBlock sb, _Inode inode, int siDir, char* fileData, int* blockIndex, int* bn)
 {
    int* siPointers = getSIndirectPointers(siDir);
@@ -649,12 +647,10 @@ void VirtualDisk::loadSI(_SuperBlock sb, _Inode inode, int siDir, char* fileData
         disk->read(blockData, sb.blockSize);
 
         loadBlockData(fileData, blockData, (*blockIndex));
-//        if(ctr == 2 && i == 0)for(int i = 0; i < 300; i++) cout << blockData[i] << endl;
-//        cout << "Block Index: " << *blockIndex << "\tBlock Dir: " << siPointers[i] << "\tBlocks Needed: " << *bn << endl;
 
         delete blockData;
       }
-ctr++;
+
 }
 
 int* VirtualDisk::getSIndirectPointers(int siBlockDir)
@@ -738,16 +734,4 @@ int VirtualDisk::getFileSize(char* fileName)
 void VirtualDisk::printInodeTableOccupied()
 {
    inodeTable->printOccupied();
-}
-
-void VirtualDisk::testOut()
-{
-  _SuperBlock sb = *superBlock->getStruct();
-  int* pointers = new int[sb.blocksPerSI];
-   disk->seekp(320296960);//disk->tellp()-sb.blockSize);
-
-        disk->read((char*)pointers, sb.blockSize);
-
-        for(int i = 0; i < 1110; i++)
-        cout << "Pointer " << i << " at SI Block: " << pointers[i] << endl;
 }

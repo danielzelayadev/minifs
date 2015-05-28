@@ -31,7 +31,7 @@ class VirtualDisk
         void printInodeTable();
         void printInodeTableOccupied();
         void printInode(int iNumber);
-void testOut();
+
     private:
         SuperBlock* superBlock;
         Bitmap* bitmap;
