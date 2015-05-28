@@ -64,7 +64,7 @@ void testOut();
         void alloc_blocks(_Inode* inode);
         int alloc_block();
 
-        void alloc_sIndirect(_Inode* inode, int *blocksNeeded, int mode);
+        void alloc_sIndirect(_Inode* inode, int *blocksNeeded, int* siDir);
         void alloc_dIndirect(_Inode* inode, int *blocksNeeded);
         void writePointersToBlock(int* pointers, int blockPos);
 

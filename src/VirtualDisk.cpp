@@ -320,19 +320,16 @@ void VirtualDisk::alloc_blocks(_Inode* inode)
       inode->blocks[i] = alloc_block();
 
    if(blocksNeeded != 0)
-      alloc_sIndirect(inode, &blocksNeeded, FI);
+      alloc_sIndirect(inode, &blocksNeeded, &inode->singleIndirectBlock);
 
    if(blocksNeeded != 0)
       alloc_dIndirect(inode, &blocksNeeded);
 
 }
-
-void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int mode)
+int hmt = 0;
+void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int* siDir)
 {
-    int siDir = alloc_block();
-
-    if(mode == FI)
-       inode->singleIndirectBlock = siDir;
+    *siDir = alloc_block();
 
     _SuperBlock sb = *superBlock->getStruct();
 
@@ -341,19 +338,19 @@ void VirtualDisk::alloc_sIndirect(_Inode* inode, int* blocksNeeded, int mode)
     int bn = *blocksNeeded;
 
     for(int i = 0; (*blocksNeeded) > 0 && i < sb.blocksPerSI; i++, (*blocksNeeded)--)
-        pointers[i] = alloc_block();
+        {hmt++; cout << hmt << endl; pointers[i] = alloc_block();}
 
-    writePointersToBlock(pointers, siDir);
+    writePointersToBlock(pointers, *siDir);
 
-    if((*blocksNeeded) == 0) //FDI)
-   {
-        disk->seekp(320296960);//disk->tellp()-sb.blockSize);
-
-        disk->read((char*)pointers, sb.blockSize);
-
-        for(int i = 0; bn > 0 && i < sb.blocksPerSI; i++,bn--)
-        cout << "Pointer " << i << " at SI Block: " << pointers[i] << endl;
-   }
+//    if((*blocksNeeded) == 0) //FDI)
+//   {
+//        disk->seekp(320296960);//disk->tellp()-sb.blockSize);
+//
+//        disk->read((char*)pointers, sb.blockSize);
+//
+//        for(int i = 0; bn > 0 && i < sb.blocksPerSI; i++,bn--)
+//        cout << "Pointer " << i << " at SI Block: " << pointers[i] << endl;
+//   }
 
     delete pointers;
 }
@@ -369,9 +366,8 @@ void VirtualDisk::alloc_dIndirect(_Inode* inode, int* blocksNeeded)
 
    for(int i = 0; (*blocksNeeded) > 0 && i < sb.siPerDI; i++)
    {
-       pointers[i] = alloc_block(); //Alocamos uno indirect
+       alloc_sIndirect(inode, blocksNeeded, &pointers[i]); //Alocamos los necesarios directos
        cout << "SI Block Dir en la Pos " << i << " del DI: " << pointers[i] << endl;
-       alloc_sIndirect(inode, blocksNeeded, FDI); //Alocamos los necesarios directos
    }
 
    writePointersToBlock(pointers, inode->doubleIndirectBlock);
@@ -443,17 +439,17 @@ void VirtualDisk::exportFile(char* fileName, char* destination)
 
    if(!data) return;
 
-//   ofstream* exportedFile = new ofstream(destination, ios::binary);
-//
-//   exportedFile->write(data, loadedInode->getStruct()->fileSize);
-//
-////   cout << data  << endl;
-//
-//   exportedFile->close();
-//
-////   flushInode(*loadedInode->getStruct());
-//   delete exportedFile;
-//   delete loadedInode;
+   ofstream* exportedFile = new ofstream(destination, ios::binary);
+
+   exportedFile->write(data, loadedInode->getStruct()->fileSize);
+
+//   cout << data  << endl;
+
+   exportedFile->close();
+
+//   flushInode(*loadedInode->getStruct());
+   delete exportedFile;
+   delete loadedInode;
 }
 
 void VirtualDisk::deleteFile(char* fileName)
@@ -615,24 +611,11 @@ char* VirtualDisk::loadFile(char* fileName)
       loadSI(sb, inode, inode.singleIndirectBlock, fileData, &blockIndex, &bn);
 
    if(bn > 0)
-   {  //testOut();
-//      int* diPointers = getDIndirectPointers(inode.doubleIndirectBlock);
-        disk->seekp(320296960);
-        int arr = -1;//= new int[sb.blocksPerSI];
-        for(int i = 0; i < 30; i++)
-        {disk->read((char*)&arr, 4);
-        cout << arr << endl;}
-        //      for(int i = 0; i < 33; i++) cout << i << ") " << diPointers[i] << endl;
-//      cout << diPointers[0] << endl;
-//int pos = diPointers[32]*sb.blockSize; cout << diPointers[31] << "\t" << pos << endl;
-//      disk->seekp(pos);
-//      int* si = new int[sb.siPerDI];
-//      disk->read((char*)si, sb.blockSize);
-//      cout << si[0] << endl;
-//      cout << inode.doubleIndirectBlock << endl;
-//loadedInode->printInode();
-//      for(int i = 0; bn > 0 && i < sb.siPerDI; i++)
-//         loadSI(sb, inode, diPointers[i], fileData, &blockIndex, &bn);
+   {
+      int* diPointers = getDIndirectPointers(inode.doubleIndirectBlock);
+
+      for(int i = 0; bn > 0 && i < sb.siPerDI; i++)
+          loadSI(sb, inode, diPointers[i], fileData, &blockIndex, &bn);
    }
 
    return fileData;
@@ -643,7 +626,13 @@ void VirtualDisk::loadBlockData(char* fileData, char* blockData, int blockIndex)
     _SuperBlock sb = *superBlock->getStruct();
 
     for(int i = 0; i < sb.blockSize; i++)
-       fileData[(sb.blockSize * blockIndex)+i] = blockData[i];//Se pega un poco de basura asi que hay que cancelar cuando el
+    {
+       int pos = (sb.blockSize * blockIndex)+i;
+
+       if(pos >= loadedInode->getStruct()->fileSize) return;
+
+       fileData[pos] = blockData[i];
+    }//Se pega un poco de basura asi que hay que cancelar cuando el
        //archivo se termine
 }
 int ctr = 1;
