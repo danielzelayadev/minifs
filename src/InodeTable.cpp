@@ -84,3 +84,10 @@ void InodeTable::printInodeInfo(InodeInfo* iInfo)
 
    cout << endl;
 }
+
+void InodeTable::printOccupied()
+{
+    for(int i = 0; i < tableSize; i++)
+        if(!inodeTable[i].free)
+           printInodeInfo(inodeTable[i].iNumber);
+}

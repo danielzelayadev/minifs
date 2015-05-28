@@ -22,6 +22,7 @@ class InodeTable
         int getTableSize();
 
         void printTable();
+        void printOccupied();
         void printInodeInfo(int iNumber);
         void printInodeInfo(char* fileName);
         void printInodeInfo(InodeInfo* iInfo);
